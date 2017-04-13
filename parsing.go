@@ -7,7 +7,7 @@ import (
 	"io"
 
 	cid "github.com/ipfs/go-cid"
-	node "github.com/ipfs/go-ipld-node"
+	node "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 )
 
@@ -22,14 +22,10 @@ func DecodeBlockMessage(b []byte) ([]node.Node, error) {
 		panic("not the same!")
 	}
 
-	fmt.Println("Read block: ", blk.HexHash())
-
 	nTx, err := readVarint(r)
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("num transactions: ", nTx)
 
 	var txs []node.Node
 	for i := 0; i < nTx; i++ {
@@ -100,7 +96,6 @@ func ReadBlock(r *bytes.Reader) (*Block, error) {
 		return nil, err
 	}
 	blk.Version = binary.LittleEndian.Uint32(version)
-	fmt.Println("version: ", blk.Version)
 
 	prevBlock := make([]byte, 32)
 	_, err = io.ReadFull(r, prevBlock)
@@ -110,7 +105,6 @@ func ReadBlock(r *bytes.Reader) (*Block, error) {
 
 	blkhash, _ := mh.Encode(prevBlock, mh.DBL_SHA2_256)
 	blk.Parent = cid.NewCidV1(cid.BitcoinBlock, blkhash)
-	fmt.Println("prevBlock: ", prevBlock)
 
 	merkleRoot := make([]byte, 32)
 	_, err = io.ReadFull(r, merkleRoot)
@@ -218,7 +212,7 @@ func readTx(r *bytes.Reader) (*Tx, error) {
 	return &out, nil
 }
 
-func parseTxIn(r *bytes.Reader) (*txIn, error) {
+func parseTxIn(r *bytes.Reader) (*TxIn, error) {
 	prevTxHash := make([]byte, 32)
 	_, err := io.ReadFull(r, prevTxHash)
 	if err != nil {
@@ -249,7 +243,7 @@ func parseTxIn(r *bytes.Reader) (*txIn, error) {
 		return nil, err
 	}
 
-	return &txIn{
+	return &TxIn{
 		PrevTx:      hashToCid(prevTxHash, cid.BitcoinTx),
 		PrevTxIndex: binary.LittleEndian.Uint32(prevTxIndex),
 		Script:      script,
@@ -257,7 +251,7 @@ func parseTxIn(r *bytes.Reader) (*txIn, error) {
 	}, nil
 }
 
-func parseTxOut(r *bytes.Reader) (*txOut, error) {
+func parseTxOut(r *bytes.Reader) (*TxOut, error) {
 	value := make([]byte, 8)
 	_, err := io.ReadFull(r, value)
 	if err != nil {
@@ -276,7 +270,7 @@ func parseTxOut(r *bytes.Reader) (*txOut, error) {
 	}
 
 	// read script
-	return &txOut{
+	return &TxOut{
 		Value:  binary.LittleEndian.Uint64(value),
 		Script: script,
 	}, nil
