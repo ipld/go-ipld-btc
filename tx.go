@@ -14,11 +14,14 @@ import (
 )
 
 type Tx struct {
-	Version  uint32   `json:"version"`
-	Inputs   []*TxIn  `json:"inputs"`
-	Outputs  []*TxOut `json:"outputs"`
-	LockTime uint32   `json:"locktime"`
+	Version    uint32      `json:"version"`
+	Inputs     []*TxIn     `json:"inputs"`
+	Outputs    []*TxOut    `json:"outputs"`
+	LockTime   uint32      `json:"locktime"`
+	Wittnesses []*Wittness `json:"wittnesses"`
 }
+
+type Wittness struct{}
 
 func (t *Tx) Cid() *cid.Cid {
 	h, _ := mh.Sum(t.RawData(), mh.DBL_SHA2_256, -1)
