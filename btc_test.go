@@ -1,6 +1,7 @@
 package ipldbtc
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
@@ -81,7 +82,7 @@ func TestBip143TxsNativeP2WPKH(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx, err := readTx(bytes.NewReader(data))
+	tx, err := readTx(bufio.NewReader(bytes.NewReader(data)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +138,7 @@ func TestBip143TxsNativeP2WSH(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx, err := readTx(bytes.NewReader(data))
+	tx, err := readTx(bufio.NewReader(bytes.NewReader(data)))
 	if err != nil {
 		t.Fatal(err)
 	}
