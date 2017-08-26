@@ -27,14 +27,40 @@ func DecodeBlockMessage(b []byte) ([]node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("txcount: %d\n", nTx)
 
+	hashCtr, err := readVarint(r)
+	if err != nil {
+		return nil, err
+	}
+
+	hashes := make([][]byte, hashCtr)
+	for i := 0; i < hashCtr; i++ {
+		hashes[i] = make([]byte, 32)
+		_, err := io.ReadFull(r, hashes[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	fmt.Printf("hashes: %d, %v\n", hashCtr, hashes)
+	flagBytes, err := readVarint(r)
+	if err != nil {
+		return nil, err
+	}
+
+	flags := make([]byte, flagBytes)
+	_, err = io.ReadFull(r, flags)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("flags: %d %v\n", flagBytes, flags)
 	var txs []node.Node
 	for i := 0; i < nTx; i++ {
 		tx, err := readTx(r)
 		if err != nil {
 			return nil, err
 		}
-
+		fmt.Printf("got tx: %v %v %v \n", len(tx.Witnesses), len(tx.Inputs), len(tx.Outputs))
 		txs = append(txs, tx)
 	}
 
@@ -97,7 +123,7 @@ func ReadBlock(r *bytes.Reader) (*Block, error) {
 		return nil, err
 	}
 	blk.Version = binary.LittleEndian.Uint32(version)
-
+	fmt.Printf("-- block version: %d\n", blk.Version)
 	prevBlock := make([]byte, 32)
 	_, err = io.ReadFull(r, prevBlock)
 	if err != nil {
@@ -189,10 +215,10 @@ func readTx(r *bytes.Reader) (*Tx, error) {
 	}
 	// version
 	version := binary.LittleEndian.Uint32(rawVersion)
-
+	fmt.Printf("-- tx version: %d\n", version)
 	buf := bufio.NewReader(r)
 
-	isSegwit, err := isSegwitTx(version, buf)
+	isSegwit, err := isSegwitTx(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -204,11 +230,7 @@ func readTx(r *bytes.Reader) (*Tx, error) {
 	return readRegularTx(version, buf)
 }
 
-func isSegwitTx(version uint32, r *bufio.Reader) (bool, error) {
-	if version < 1 {
-		return false, nil
-	}
-
+func isSegwitTx(r *bufio.Reader) (bool, error) {
 	// the next two bytes must be [0x00, 0x01] to indicate the new
 	// segwit format
 	header, err := r.Peek(2)
@@ -254,28 +276,29 @@ func readSegwitTx(version uint32, r *bufio.Reader) (*Tx, error) {
 		return nil, err
 	}
 
-	// wittness
-	// implicit wittness_count == tx_in_count
-	wittnesses, err := readTxWittnesses(r, len(inputs))
+	// witness
+	// implicit witness_count == tx_in_count
+	witnesses, err := readTxWitnesses(r, len(inputs))
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Printf("witness: %d %v\n", len(witnesses), witnesses[0].Data)
 	lockTime, err := readTxLockTime(r)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Tx{
-		Version:    version,
-		Inputs:     inputs,
-		Outputs:    outputs,
-		LockTime:   lockTime,
-		Wittnesses: wittnesses,
+		Version:   version,
+		Inputs:    inputs,
+		Outputs:   outputs,
+		LockTime:  lockTime,
+		Witnesses: witnesses,
 	}, nil
 }
 
 func readRegularTx(version uint32, r *bufio.Reader) (*Tx, error) {
+	fmt.Println("reading regular tx")
 	inputs, err := readTxInputs(r)
 	if err != nil {
 		return nil, err
@@ -299,9 +322,38 @@ func readRegularTx(version uint32, r *bufio.Reader) (*Tx, error) {
 	}, nil
 }
 
-func readTxWittnesses(r *bufio.Reader, ctr int) ([]*Wittness, error) {
-	wittnesses := make([]*Wittness, ctr)
-	return wittnesses, nil
+func readTxWitnesses(r *bufio.Reader, ctr int) ([]*Witness, error) {
+	witnesses := make([]*Witness, ctr)
+	fmt.Printf("readTxWitnesses: %d\n", ctr)
+
+	for i := 0; i < ctr; i++ {
+		witCtr, err := readVarint(r)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("witness field, %d\n", witCtr)
+		items := make([][]byte, witCtr)
+		for j := 0; j < witCtr; j++ {
+			len, err := readVarint(r)
+			if err != nil {
+				return nil, err
+			}
+			if len == 0 {
+				continue
+			}
+
+			items[j] = make([]byte, len)
+			if _, err = io.ReadFull(r, items[j]); err != nil {
+				return nil, err
+			}
+		}
+
+		witnesses[i] = &Witness{
+			Data: items,
+		}
+	}
+
+	return witnesses, nil
 }
 
 func readTxInputs(r *bufio.Reader) ([]*TxIn, error) {
@@ -317,7 +369,7 @@ func readTxInputs(r *bufio.Reader) ([]*TxIn, error) {
 		if err != nil {
 			return nil, err
 		}
-
+		fmt.Printf("found txin: %v\n", txin)
 		out[i] = txin
 	}
 
@@ -355,6 +407,8 @@ func readTxLockTime(r *bufio.Reader) (uint32, error) {
 }
 
 func parseTxIn(r *bufio.Reader) (*TxIn, error) {
+	next, _ := r.Peek(32)
+	fmt.Printf("parsetxin: %v\n", next)
 	prevTxHash := make([]byte, 32)
 	_, err := io.ReadFull(r, prevTxHash)
 	if err != nil {
@@ -366,11 +420,13 @@ func parseTxIn(r *bufio.Reader) (*TxIn, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	next, _ = r.Peek(9)
+	fmt.Printf("bytes: %v\n", next)
 	scriptLen, err := readVarint(r)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("got script_len: %d\n", scriptLen)
 
 	// Read Script
 	script := make([]byte, scriptLen)
@@ -430,7 +486,7 @@ func readVarint(r io.Reader) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
+	fmt.Printf("readvarint: %d\n", b[0])
 	switch b[0] {
 	case 0xfd:
 		buf := make([]byte, 2)
