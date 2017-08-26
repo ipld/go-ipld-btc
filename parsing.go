@@ -16,20 +16,16 @@ func DecodeBlockMessage(b []byte) ([]node.Node, error) {
 	r := bytes.NewReader(b)
 	blk, err := ReadBlock(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read block header: %s", err)
 	}
 
 	if !bytes.Equal(blk.header(), b[:80]) {
 		panic("not the same!")
 	}
 
-	// next := make([]byte, 100)
-	// _, _ = io.ReadFull(r, next)
-	// fmt.Printf("next: %v", next)
-
 	nTx, err := readVarint(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read tx_count: %s", err)
 	}
 	fmt.Printf("txcount: %d\n", nTx)
 
@@ -37,15 +33,14 @@ func DecodeBlockMessage(b []byte) ([]node.Node, error) {
 	for i := 0; i < nTx; i++ {
 		tx, err := readTx(r)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read tx(%d): %s", i, err)
 		}
-		fmt.Printf("got tx: %v %v %v \n", len(tx.Witnesses), len(tx.Inputs), len(tx.Outputs))
 		txs = append(txs, tx)
 	}
 
 	txtrees, err := mkMerkleTree(txs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to mk merkle tree: %s", err)
 	}
 
 	out := []node.Node{blk}
@@ -99,14 +94,14 @@ func ReadBlock(r *bytes.Reader) (*Block, error) {
 	version := make([]byte, 4)
 	_, err := io.ReadFull(r, version)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read version: %s", err)
 	}
 	blk.Version = binary.LittleEndian.Uint32(version)
-	fmt.Printf("-- block version: %d\n", blk.Version)
+	fmt.Printf("-- block version: %v %d\n", version, blk.Version)
 	prevBlock := make([]byte, 32)
 	_, err = io.ReadFull(r, prevBlock)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read prev_block: %s", err)
 	}
 
 	blkhash, _ := mh.Encode(prevBlock, mh.DBL_SHA2_256)
@@ -115,7 +110,7 @@ func ReadBlock(r *bytes.Reader) (*Block, error) {
 	merkleRoot := make([]byte, 32)
 	_, err = io.ReadFull(r, merkleRoot)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read merkle_root: %s", err)
 	}
 	txroothash, _ := mh.Encode(merkleRoot, mh.DBL_SHA2_256)
 	blk.MerkleRoot = cid.NewCidV1(cid.BitcoinTx, txroothash)
@@ -123,24 +118,24 @@ func ReadBlock(r *bytes.Reader) (*Block, error) {
 	timestamp := make([]byte, 4)
 	_, err = io.ReadFull(r, timestamp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read timestamp: %s", err)
 	}
 	blk.Timestamp = binary.LittleEndian.Uint32(timestamp)
 
 	diff := make([]byte, 4)
 	_, err = io.ReadFull(r, diff)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read difficulty: %s", err)
 	}
 	blk.Difficulty = binary.LittleEndian.Uint32(diff)
 
 	nonce := make([]byte, 4)
 	_, err = io.ReadFull(r, nonce)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read nonce: %s", err)
 	}
 	blk.Nonce = binary.LittleEndian.Uint32(nonce)
-
+	fmt.Printf("nonce: %d\n", blk.Nonce)
 	return &blk, nil
 }
 
@@ -197,11 +192,9 @@ func readTx(r *bytes.Reader) (*Tx, error) {
 	fmt.Printf("-- tx version: %d\n", version)
 	buf := bufio.NewReader(r)
 
-	next, _ := buf.Peek(32)
-	fmt.Printf("header: %v\n", next)
 	isSegwit, err := isSegwitTx(buf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to check segwit: %s", err)
 	}
 
 	if isSegwit {
@@ -331,7 +324,7 @@ func readTxWitnesses(r *bufio.Reader, ctr int) ([]*Witness, error) {
 func readTxInputs(r *bufio.Reader) ([]*TxIn, error) {
 	inCtr, err := readVarint(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read in_count: %s", err)
 	}
 
 	fmt.Printf("readtxinputs: %d\n", inCtr)
@@ -340,9 +333,8 @@ func readTxInputs(r *bufio.Reader) ([]*TxIn, error) {
 	for i := 0; i < inCtr; i++ {
 		txin, err := parseTxIn(r)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse tx(%d): %s", i, err)
 		}
-		fmt.Printf("found txin: %v\n", txin)
 		out[i] = txin
 	}
 
@@ -360,7 +352,7 @@ func readTxOutputs(r *bufio.Reader) ([]*TxOut, error) {
 	for i := 0; i < outCtr; i++ {
 		txout, err := parseTxOut(r)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read tx_out(%d/%d): %s", i, outCtr, err)
 		}
 
 		out[i] = txout
@@ -380,8 +372,6 @@ func readTxLockTime(r *bufio.Reader) (uint32, error) {
 }
 
 func parseTxIn(r *bufio.Reader) (*TxIn, error) {
-	next, _ := r.Peek(32)
-	fmt.Printf("parsetxin: %v\n", next)
 	prevTxHash := make([]byte, 32)
 	_, err := io.ReadFull(r, prevTxHash)
 	if err != nil {
@@ -393,13 +383,10 @@ func parseTxIn(r *bufio.Reader) (*TxIn, error) {
 	if err != nil {
 		return nil, err
 	}
-	next, _ = r.Peek(9)
-	fmt.Printf("bytes: %v\n", next)
 	scriptLen, err := readVarint(r)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("got script_len: %d\n", scriptLen)
 
 	// Read Script
 	script := make([]byte, scriptLen)
@@ -437,7 +424,7 @@ func parseTxOut(r *bufio.Reader) (*TxOut, error) {
 	script := make([]byte, scriptLen)
 	_, err = io.ReadFull(r, script)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("not enough bytes (%d): %s", scriptLen, err)
 	}
 
 	// read script

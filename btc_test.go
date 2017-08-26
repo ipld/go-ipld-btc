@@ -3,6 +3,7 @@ package ipldbtc
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"testing"
 )
@@ -46,11 +47,12 @@ func TestBlockMessageDecodingSegwit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data, err := hex.DecodeString(string(hexdata[:len(hexdata)-1]))
+	data := make([]byte, len(hexdata)-1)
+	_, err = hex.Decode(data, hexdata[:len(hexdata)-1])
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	fmt.Printf("data: %v\n", data[0:10])
 	nodes, err := DecodeBlockMessage(data)
 	if err != nil {
 		t.Fatal(err)
