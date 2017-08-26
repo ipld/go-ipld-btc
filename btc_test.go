@@ -39,6 +39,37 @@ func TestBlockMessageDecoding(t *testing.T) {
 	}
 }
 
+func TestBlockMessageDecodingSegwit(t *testing.T) {
+	hexdata, err := ioutil.ReadFile("segwit.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := hex.DecodeString(string(hexdata[:len(hexdata)-1]))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nodes, err := DecodeBlockMessage(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expblk := "0000000000000002909eabb1da3710351faf452374946a0dfdb247d491c6c23e"
+	if nodes[0].(*Block).HexHash() != expblk {
+		t.Fatal("parsed incorrectly")
+	}
+
+	blk, _, err := nodes[0].ResolveLink([]string{"tx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !blk.Cid.Equals(nodes[len(nodes)-1].Cid()) {
+		t.Fatal("merkle root looks wrong")
+	}
+}
+
 func TestDecodingNoTxs(t *testing.T) {
 	hexdata := "010000000508085c47cc849eb80ea905cc7800a3be674ffc57263cf210c59d8d00000000112ba175a1e04b14ba9e7ea5f76ab640affeef5ec98173ac9799a852fa39add320cd6649ffff001d1e2de5650101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0136ffffffff0100f2052a01000000434104fcc2888ca91cf0103d8c5797c256bf976e81f280205d002d85b9b622ed1a6f820866c7b5fe12285cfa78c035355d752fc94a398b67597dc4fbb5b386816425ddac00000000"
 

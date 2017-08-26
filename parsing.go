@@ -172,6 +172,7 @@ func readTx(r *bytes.Reader) (*Tx, error) {
 		return nil, err
 	}
 	out.Version = binary.LittleEndian.Uint32(version)
+	fmt.Println("VERSION: ", out.Version)
 
 	inCtr, err := readVarint(r)
 	if err != nil {
