@@ -1,6 +1,7 @@
 package ipldbtc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"io/ioutil"
 	"testing"
@@ -67,6 +68,135 @@ func TestBlockMessageDecodingSegwit(t *testing.T) {
 
 	if !blk.Cid.Equals(nodes[len(nodes)-1].Cid()) {
 		t.Fatal("merkle root looks wrong")
+	}
+}
+
+func TestBip143TxsNativeP2WPKH(t *testing.T) {
+	hexData := "01000000000102fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f00000000494830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac000247304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee0121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635711000000"
+
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := readTx(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tx.Version != 1 {
+		t.Fatal("incorrect version")
+	}
+
+	if len(tx.Inputs) != 2 {
+		t.Fatal("incorrect input length")
+	}
+
+	if len(tx.Outputs) != 2 {
+		t.Fatal("incorrect output length")
+	}
+	if len(tx.Witnesses) != 2 {
+		t.Fatal("incorrect witnesses length")
+	}
+
+	if len(tx.Witnesses[0].Data) > 0 {
+		t.Fatal("incorrect first witness")
+	}
+
+	witAHex := "304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee01"
+	witBHex := "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357"
+	witA, err := hex.DecodeString(witAHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	witB, err := hex.DecodeString(witBHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(tx.Witnesses[1].Data[0], witA) {
+		t.Fatal("incorrect second witness 1")
+	}
+
+	if !bytes.Equal(tx.Witnesses[1].Data[1], witB) {
+		t.Fatal("incorrect second witness 2")
+	}
+
+	if tx.LockTime != 17 /* 0x11000000 */ {
+		t.Fatalf("incorrect lock time: %d", tx.LockTime)
+	}
+}
+
+func TestBip143TxsNativeP2WSH(t *testing.T) {
+	hexData := "01000000000102e9b542c5176808107ff1df906f46bb1f2583b16112b95ee5380665ba7fcfc0010000000000ffffffff80e68831516392fcd100d186b3c2c7b95c80b53c77e77c35ba03a66b429a2a1b0000000000ffffffff0280969800000000001976a914de4b231626ef508c9a74a8517e6783c0546d6b2888ac80969800000000001976a9146648a8cd4531e1ec47f35916de8e259237294d1e88ac02483045022100f6a10b8604e6dc910194b79ccfc93e1bc0ec7c03453caaa8987f7d6c3413566002206216229ede9b4d6ec2d325be245c5b508ff0339bf1794078e20bfe0babc7ffe683270063ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac024730440220032521802a76ad7bf74d0e2c218b72cf0cbc867066e2e53db905ba37f130397e02207709e2188ed7f08f4c952d9d13986da504502b8c3be59617e043552f506c46ff83275163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac00000000"
+
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := readTx(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tx.Version != 1 {
+		t.Fatal("incorrect version")
+	}
+
+	if len(tx.Inputs) != 2 {
+		t.Fatal("incorrect input length")
+	}
+
+	if len(tx.Outputs) != 2 {
+		t.Fatal("incorrect output length")
+	}
+	if len(tx.Witnesses) != 2 {
+		t.Fatal("incorrect witnesses length")
+	}
+
+	witA1Hex := "3045022100f6a10b8604e6dc910194b79ccfc93e1bc0ec7c03453caaa8987f7d6c3413566002206216229ede9b4d6ec2d325be245c5b508ff0339bf1794078e20bfe0babc7ffe683"
+
+	witB1Hex := "0063ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
+
+	witA1, err := hex.DecodeString(witA1Hex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	witB1, err := hex.DecodeString(witB1Hex)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(tx.Witnesses[0].Data[0], witA1) {
+		t.Fatal("incorrect first witness 1")
+	}
+
+	if !bytes.Equal(tx.Witnesses[0].Data[1], witB1) {
+		t.Fatal("incorrect first witness 2")
+	}
+
+	witA2Hex := "30440220032521802a76ad7bf74d0e2c218b72cf0cbc867066e2e53db905ba37f130397e02207709e2188ed7f08f4c952d9d13986da504502b8c3be59617e043552f506c46ff83"
+	witB2Hex := "5163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
+	witA2, err := hex.DecodeString(witA2Hex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	witB2, err := hex.DecodeString(witB2Hex)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(tx.Witnesses[1].Data[0], witA2) {
+		t.Fatal("incorrect second witness 1")
+	}
+
+	if !bytes.Equal(tx.Witnesses[1].Data[1], witB2) {
+		t.Fatal("incorrect second witness 2")
+	}
+
+	if tx.LockTime != 0 /* 0x00000000 */ {
+		t.Fatalf("incorrect lock time: %d", tx.LockTime)
 	}
 }
 
