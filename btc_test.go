@@ -59,9 +59,19 @@ func TestBlockMessageDecodingSegwit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expblk := "0000000000000002909eabb1da3710351faf452374946a0dfdb247d491c6c23e"
-	if nodes[0].(*Block).HexHash() != expblk {
-		t.Fatal("parsed incorrectly")
+	block := nodes[0].(*Block)
+
+	if block.Version != 536870914 {
+		t.Fatalf("incorrect version: %d", block.Version)
+	}
+
+	if block.Nonce != 3781004001 {
+		t.Fatalf("incorrect nonce: %d", block.Nonce)
+	}
+
+	expblk := "00000000000000000006d921ce47d509544dec06838a2ff9303c50d12f4a0199"
+	if block.HexHash() != expblk {
+		t.Fatalf("parsed incorrectly: %s", block.HexHash())
 	}
 
 	blk, _, err := nodes[0].ResolveLink([]string{"tx"})
