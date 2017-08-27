@@ -43,9 +43,7 @@ func DecodeBlockMessage(b []byte) ([]node.Node, error) {
 	}
 
 	out := []node.Node{blk}
-	for _, tx := range txs {
-		out = append(out, tx)
-	}
+	out = append(out, txs...)
 
 	for _, txtree := range txtrees {
 		out = append(out, txtree)
@@ -90,15 +88,13 @@ func DecodeBlock(b []byte) (*Block, error) {
 func ReadBlock(r *bufio.Reader) (*Block, error) {
 	var blk Block
 
-	version := make([]byte, 4)
-	_, err := io.ReadFull(r, version)
+	version, err := readFixedSlice(r, 4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read version: %s", err)
 	}
 	blk.Version = binary.LittleEndian.Uint32(version)
 
-	prevBlock := make([]byte, 32)
-	_, err = io.ReadFull(r, prevBlock)
+	prevBlock, err := readFixedSlice(r, 32)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read prev_block: %s", err)
 	}
@@ -106,30 +102,26 @@ func ReadBlock(r *bufio.Reader) (*Block, error) {
 	blkhash, _ := mh.Encode(prevBlock, mh.DBL_SHA2_256)
 	blk.Parent = cid.NewCidV1(cid.BitcoinBlock, blkhash)
 
-	merkleRoot := make([]byte, 32)
-	_, err = io.ReadFull(r, merkleRoot)
+	merkleRoot, err := readFixedSlice(r, 32)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read merkle_root: %s", err)
 	}
 	txroothash, _ := mh.Encode(merkleRoot, mh.DBL_SHA2_256)
 	blk.MerkleRoot = cid.NewCidV1(cid.BitcoinTx, txroothash)
 
-	timestamp := make([]byte, 4)
-	_, err = io.ReadFull(r, timestamp)
+	timestamp, err := readFixedSlice(r, 4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read timestamp: %s", err)
 	}
 	blk.Timestamp = binary.LittleEndian.Uint32(timestamp)
 
-	diff := make([]byte, 4)
-	_, err = io.ReadFull(r, diff)
+	diff, err := readFixedSlice(r, 4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read difficulty: %s", err)
 	}
 	blk.Difficulty = binary.LittleEndian.Uint32(diff)
 
-	nonce := make([]byte, 4)
-	_, err = io.ReadFull(r, nonce)
+	nonce, err := readFixedSlice(r, 4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read nonce: %s", err)
 	}
@@ -181,8 +173,7 @@ func DecodeTxTree(b []byte) (*TxTree, error) {
 //   version | marker | flag | tx_in_count | tx_in | tx_out_count | tx_out | witness | lock_time
 //
 func readTx(r *bufio.Reader) (*Tx, error) {
-	rawVersion := make([]byte, 4)
-	_, err := io.ReadFull(r, rawVersion)
+	rawVersion, err := readFixedSlice(r, 4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse version: %s", err)
 	}
@@ -194,11 +185,7 @@ func readTx(r *bufio.Reader) (*Tx, error) {
 		return nil, fmt.Errorf("failed to check segwit: %s", err)
 	}
 
-	if isSegwit {
-		return readSegwitTx(version, r)
-	}
-
-	return readRegularTx(version, r)
+	return readTxDetails(r, version, isSegwit)
 }
 
 func isSegwitTx(r *bufio.Reader) (bool, error) {
@@ -216,11 +203,13 @@ func isSegwitTx(r *bufio.Reader) (bool, error) {
 	return false, nil
 }
 
-func readSegwitTx(version uint32, r *bufio.Reader) (*Tx, error) {
-	// header & flag validation already happened before
-	_, err := r.Discard(2)
-	if err != nil {
-		return nil, err
+func readTxDetails(r *bufio.Reader, version uint32, isSegwit bool) (*Tx, error) {
+	if isSegwit {
+		// header & flag validation already happened before
+		_, err := r.Discard(2)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	inputs, err := readTxInputs(r)
@@ -233,11 +222,14 @@ func readSegwitTx(version uint32, r *bufio.Reader) (*Tx, error) {
 		return nil, err
 	}
 
-	// witness
-	// implicit witness_count == tx_in_count
-	witnesses, err := readTxWitnesses(r, len(inputs))
-	if err != nil {
-		return nil, err
+	var witnesses []*Witness
+	if isSegwit {
+		// witness
+		// implicit witness_count == tx_in_count
+		witnesses, err = readTxWitnesses(r, len(inputs))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	lockTime, err := readTxLockTime(r)
@@ -254,30 +246,6 @@ func readSegwitTx(version uint32, r *bufio.Reader) (*Tx, error) {
 	}, nil
 }
 
-func readRegularTx(version uint32, r *bufio.Reader) (*Tx, error) {
-	inputs, err := readTxInputs(r)
-	if err != nil {
-		return nil, err
-	}
-
-	outputs, err := readTxOutputs(r)
-	if err != nil {
-		return nil, err
-	}
-
-	lockTime, err := readTxLockTime(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Tx{
-		Version:  version,
-		Inputs:   inputs,
-		Outputs:  outputs,
-		LockTime: lockTime,
-	}, nil
-}
-
 func readTxWitnesses(r *bufio.Reader, ctr int) ([]*Witness, error) {
 	witnesses := make([]*Witness, ctr)
 
@@ -289,18 +257,11 @@ func readTxWitnesses(r *bufio.Reader, ctr int) ([]*Witness, error) {
 
 		items := make([][]byte, witCtr)
 		for j := 0; j < witCtr; j++ {
-			len, err := readVarint(r)
+			item, err := readVarSlice(r)
 			if err != nil {
 				return nil, err
 			}
-			if len == 0 {
-				continue
-			}
-
-			items[j] = make([]byte, len)
-			if _, err = io.ReadFull(r, items[j]); err != nil {
-				return nil, err
-			}
+			items[j] = item
 		}
 
 		witnesses[i] = &Witness{
@@ -351,8 +312,7 @@ func readTxOutputs(r *bufio.Reader) ([]*TxOut, error) {
 }
 
 func readTxLockTime(r *bufio.Reader) (uint32, error) {
-	lockTime := make([]byte, 4)
-	_, err := io.ReadFull(r, lockTime)
+	lockTime, err := readFixedSlice(r, 4)
 	if err != nil {
 		return 0, err
 	}
@@ -361,25 +321,17 @@ func readTxLockTime(r *bufio.Reader) (uint32, error) {
 }
 
 func parseTxIn(r *bufio.Reader) (*TxIn, error) {
-	prevTxHash := make([]byte, 32)
-	_, err := io.ReadFull(r, prevTxHash)
+	prevTxHash, err := readFixedSlice(r, 32)
 	if err != nil {
 		return nil, err
 	}
 
-	prevTxIndex := make([]byte, 4)
-	_, err = io.ReadFull(r, prevTxIndex)
-	if err != nil {
-		return nil, err
-	}
-	scriptLen, err := readVarint(r)
+	prevTxIndex, err := readFixedSlice(r, 4)
 	if err != nil {
 		return nil, err
 	}
 
-	// Read Script
-	script := make([]byte, scriptLen)
-	_, err = io.ReadFull(r, script)
+	script, err := readVarSlice(r)
 	if err != nil {
 		return nil, err
 	}
@@ -405,15 +357,9 @@ func parseTxOut(r *bufio.Reader) (*TxOut, error) {
 		return nil, err
 	}
 
-	scriptLen, err := readVarint(r)
+	script, err := readVarSlice(r)
 	if err != nil {
 		return nil, err
-	}
-
-	script := make([]byte, scriptLen)
-	_, err = io.ReadFull(r, script)
-	if err != nil {
-		return nil, fmt.Errorf("not enough bytes (%d): %s", scriptLen, err)
 	}
 
 	// read script
@@ -423,18 +369,13 @@ func parseTxOut(r *bufio.Reader) (*TxOut, error) {
 	}, nil
 }
 
-func readBuf(r io.Reader, size int) ([]byte, error) {
-	out := make([]byte, size)
-	_, err := io.ReadFull(r, out)
-	return out, err
-}
-
 func readVarint(r *bufio.Reader) (int, error) {
 	b, err := r.ReadByte()
 	if err != nil {
 		return 0, err
 	}
 
+	var res int
 	switch b {
 	case 0xfd:
 		buf := make([]byte, 2)
@@ -442,7 +383,7 @@ func readVarint(r *bufio.Reader) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		return int(binary.LittleEndian.Uint16(buf)), nil
+		res = int(binary.LittleEndian.Uint16(buf))
 	case 0xfe:
 		buf := make([]byte, 4)
 		_, err := r.Read(buf)
@@ -450,7 +391,7 @@ func readVarint(r *bufio.Reader) (int, error) {
 			return 0, err
 		}
 
-		return int(binary.LittleEndian.Uint32(buf)), nil
+		res = int(binary.LittleEndian.Uint32(buf))
 	case 0xff:
 		buf := make([]byte, 8)
 		_, err := r.Read(buf)
@@ -458,10 +399,19 @@ func readVarint(r *bufio.Reader) (int, error) {
 			return 0, err
 		}
 
-		return int(binary.LittleEndian.Uint64(buf)), nil
+		res = int(binary.LittleEndian.Uint64(buf))
 	default:
-		return int(b), nil
+		res = int(b)
 	}
+
+	// all varints we are reading are actually unsigned,
+	// so if they are suddenly signed this means there was an overflow
+	// on int.
+	if res < 0 {
+		return 0, fmt.Errorf("varint overflow: %d", res)
+	}
+
+	return res, nil
 }
 
 func writeVarInt(w io.Writer, n uint64) error {
@@ -483,4 +433,23 @@ func writeVarInt(w io.Writer, n uint64) error {
 	}
 	_, err := w.Write(d)
 	return err
+}
+
+func readVarSlice(r *bufio.Reader) ([]byte, error) {
+	length, err := readVarint(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read length: %s", err)
+	}
+
+	return readFixedSlice(r, length)
+}
+
+func readFixedSlice(r *bufio.Reader, length int) ([]byte, error) {
+	out := make([]byte, length)
+	_, err := io.ReadFull(r, out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read all bytes(%d): %s", length, err)
+	}
+
+	return out, nil
 }
