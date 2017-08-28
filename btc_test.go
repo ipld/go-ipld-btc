@@ -43,44 +43,78 @@ func TestBlockMessageDecoding(t *testing.T) {
 }
 
 func TestBlockMessageDecodingSegwit(t *testing.T) {
-	hexdata, err := ioutil.ReadFile("fixtures/segwit.bin")
-	if err != nil {
-		t.Fatal(err)
+	testCases := []struct {
+		file    string
+		version uint32
+		nonce   uint32
+		hash    string
+	}{
+		{
+			hash:    "00000000000000000006d921ce47d509544dec06838a2ff9303c50d12f4a0199",
+			file:    "segwit.bin",
+			version: 536870914,
+			nonce:   3781004001,
+		},
+		{
+			hash:    "000000000000000000ac2a49162ec7c457212134e46ab24daa63e0fae949bd90",
+			file:    "segwit2.bin",
+			version: 536870914,
+			nonce:   3911763601,
+		},
+		{
+			hash:    "000000000000000000d172ef46944db6127dbebe815664f26f37fef3e22fd65b",
+			file:    "segwit3.bin",
+			version: 536870912,
+			nonce:   2945767029,
+		},
 	}
 
-	data := make([]byte, len(hexdata)-1)
-	_, err = hex.Decode(data, hexdata[:len(hexdata)-1])
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Printf("data: %v\n", data[0:10])
-	nodes, err := DecodeBlockMessage(data)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("block:%s(%s)", tc.hash, tc.file), func(t *testing.T) {
+			hexdata, err := ioutil.ReadFile("fixtures/" + tc.file)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	block := nodes[0].(*Block)
+			dataLen := len(hexdata)
+			if dataLen%2 != 0 {
+				dataLen = dataLen - 1
+			}
 
-	if block.Version != 536870914 {
-		t.Fatalf("incorrect version: %d", block.Version)
-	}
+			data := make([]byte, dataLen)
+			_, err = hex.Decode(data, hexdata[:dataLen])
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	if block.Nonce != 3781004001 {
-		t.Fatalf("incorrect nonce: %d", block.Nonce)
-	}
+			nodes, err := DecodeBlockMessage(data)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	expblk := "00000000000000000006d921ce47d509544dec06838a2ff9303c50d12f4a0199"
-	if block.HexHash() != expblk {
-		t.Fatalf("parsed incorrectly: %s", block.HexHash())
-	}
+			block := nodes[0].(*Block)
 
-	blk, _, err := nodes[0].ResolveLink([]string{"tx"})
-	if err != nil {
-		t.Fatal(err)
-	}
+			if block.Version != tc.version {
+				t.Fatalf("incorrect version: %d", block.Version)
+			}
 
-	if !blk.Cid.Equals(nodes[len(nodes)-1].Cid()) {
-		t.Fatal("merkle root looks wrong")
+			if block.Nonce != tc.nonce {
+				t.Fatalf("incorrect nonce: %d", block.Nonce)
+			}
+
+			if block.HexHash() != tc.hash {
+				t.Fatalf("parsed incorrectly: %s", block.HexHash())
+			}
+
+			blk, _, err := nodes[0].ResolveLink([]string{"tx"})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !blk.Cid.Equals(nodes[len(nodes)-1].Cid()) {
+				t.Fatal("merkle root looks wrong")
+			}
+		})
 	}
 }
 
