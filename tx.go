@@ -198,7 +198,7 @@ func (t *Tx) treeInputs(out []string, depth int) []string {
 		return out
 	}
 
-	for i, _ := range t.Inputs {
+	for i := range t.Inputs {
 		inp := "inputs/" + fmt.Sprint(i)
 		out = append(out, inp)
 		if depth > 2 {
@@ -213,7 +213,7 @@ func (t *Tx) treeOutputs(out []string, depth int) []string {
 		return out
 	}
 
-	for i, _ := range t.Outputs {
+	for i := range t.Outputs {
 		o := "outputs/" + fmt.Sprint(i)
 		out = append(out, o)
 		if depth > 2 {

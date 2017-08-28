@@ -32,7 +32,7 @@ func DecodeBlockMessage(b []byte) ([]node.Node, error) {
 	for i := 0; i < nTx; i++ {
 		tx, err := readTx(r)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read tx(%d): %s", i, err)
+			return nil, fmt.Errorf("failed to read tx(%d/%d): %s", i, nTx, err)
 		}
 		txs = append(txs, tx)
 	}
@@ -231,7 +231,6 @@ func readTxDetails(r *bufio.Reader, version uint32, isSegwit bool) (*Tx, error) 
 			return nil, err
 		}
 	}
-
 	lockTime, err := readTxLockTime(r)
 	if err != nil {
 		return nil, err
@@ -263,7 +262,6 @@ func readTxWitnesses(r *bufio.Reader, ctr int) ([]*Witness, error) {
 			}
 			items[j] = item
 		}
-
 		witnesses[i] = &Witness{
 			Data: items,
 		}
@@ -283,7 +281,7 @@ func readTxInputs(r *bufio.Reader) ([]*TxIn, error) {
 	for i := 0; i < inCtr; i++ {
 		txin, err := parseTxIn(r)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse tx(%d): %s", i, err)
+			return nil, fmt.Errorf("failed to parse tx_in(%d/%d): %s", i, inCtr, err)
 		}
 		out[i] = txin
 	}
@@ -323,23 +321,22 @@ func readTxLockTime(r *bufio.Reader) (uint32, error) {
 func parseTxIn(r *bufio.Reader) (*TxIn, error) {
 	prevTxHash, err := readFixedSlice(r, 32)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("prev_tx_hash: %s", err)
 	}
 
 	prevTxIndex, err := readFixedSlice(r, 4)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("prev_tx_index: %s", err)
 	}
 
 	script, err := readVarSlice(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("script: %s", err)
 	}
 
-	seqNo := make([]byte, 4)
-	_, err = io.ReadFull(r, seqNo)
+	seqNo, err := readFixedSlice(r, 4)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("seqno: %s", err)
 	}
 
 	return &TxIn{
@@ -351,8 +348,7 @@ func parseTxIn(r *bufio.Reader) (*TxIn, error) {
 }
 
 func parseTxOut(r *bufio.Reader) (*TxOut, error) {
-	value := make([]byte, 8)
-	_, err := io.ReadFull(r, value)
+	value, err := readFixedSlice(r, 8)
 	if err != nil {
 		return nil, err
 	}
@@ -378,23 +374,20 @@ func readVarint(r *bufio.Reader) (int, error) {
 	var res int
 	switch b {
 	case 0xfd:
-		buf := make([]byte, 2)
-		_, err := r.Read(buf)
+		buf, err := readFixedSlice(r, 2)
 		if err != nil {
 			return 0, err
 		}
 		res = int(binary.LittleEndian.Uint16(buf))
 	case 0xfe:
-		buf := make([]byte, 4)
-		_, err := r.Read(buf)
+		buf, err := readFixedSlice(r, 2)
 		if err != nil {
 			return 0, err
 		}
 
 		res = int(binary.LittleEndian.Uint32(buf))
 	case 0xff:
-		buf := make([]byte, 8)
-		_, err := r.Read(buf)
+		buf, err := readFixedSlice(r, 8)
 		if err != nil {
 			return 0, err
 		}
