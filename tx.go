@@ -14,10 +14,15 @@ import (
 )
 
 type Tx struct {
-	Version  uint32   `json:"version"`
-	Inputs   []*TxIn  `json:"inputs"`
-	Outputs  []*TxOut `json:"outputs"`
-	LockTime uint32   `json:"locktime"`
+	Version   uint32     `json:"version"`
+	Inputs    []*TxIn    `json:"inputs"`
+	Outputs   []*TxOut   `json:"outputs"`
+	LockTime  uint32     `json:"locktime"`
+	Witnesses []*Witness `json:"witnesses"`
+}
+
+type Witness struct {
+	Data [][]byte `json:"data"`
 }
 
 func (t *Tx) Cid() *cid.Cid {
@@ -193,7 +198,7 @@ func (t *Tx) treeInputs(out []string, depth int) []string {
 		return out
 	}
 
-	for i, _ := range t.Inputs {
+	for i := range t.Inputs {
 		inp := "inputs/" + fmt.Sprint(i)
 		out = append(out, inp)
 		if depth > 2 {
@@ -208,7 +213,7 @@ func (t *Tx) treeOutputs(out []string, depth int) []string {
 		return out
 	}
 
-	for i, _ := range t.Outputs {
+	for i := range t.Outputs {
 		o := "outputs/" + fmt.Sprint(i)
 		out = append(out, o)
 		if depth > 2 {
