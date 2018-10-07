@@ -12,7 +12,7 @@ import (
 var txdata = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff6403a6ab05e4b883e5bda9e7a59ee4bb99e9b1bc76a3a2bb0e9c92f06e4a6349de9ccc8fbe0fad11133ed73c78ee12876334c13c02000000f09f909f2f4249503130302f4d696e65642062792073647a6861626364000000000000000000000000000000005f77dba4015ca34297000000001976a914c825a1ecf2a6830c4401620c3a16f1995057c2ab88acfe75853a"
 
 func TestBlockMessageDecoding(t *testing.T) {
-	hexdata, err := ioutil.ReadFile("fixtures/block.bin")
+	hexdata, err := ioutil.ReadFile("fixtures/block.hex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,19 +51,19 @@ func TestBlockMessageDecodingSegwit(t *testing.T) {
 	}{
 		{
 			hash:    "00000000000000000006d921ce47d509544dec06838a2ff9303c50d12f4a0199",
-			file:    "segwit.bin",
+			file:    "segwit.hex",
 			version: 536870914,
 			nonce:   3781004001,
 		},
 		{
 			hash:    "000000000000000000ac2a49162ec7c457212134e46ab24daa63e0fae949bd90",
-			file:    "segwit2.bin",
+			file:    "segwit2.hex",
 			version: 536870914,
 			nonce:   3911763601,
 		},
 		{
 			hash:    "000000000000000000d172ef46944db6127dbebe815664f26f37fef3e22fd65b",
-			file:    "segwit3.bin",
+			file:    "segwit3.hex",
 			version: 536870912,
 			nonce:   2945767029,
 		},
