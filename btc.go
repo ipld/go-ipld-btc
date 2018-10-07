@@ -15,23 +15,23 @@ type Block struct {
 	rawdata []byte
 
 	Version    uint32   `json:"version"`
-	Parent     *cid.Cid `json:"parent"`
-	MerkleRoot *cid.Cid `json:"tx"`
+	Parent     cid.Cid `json:"parent"`
+	MerkleRoot cid.Cid `json:"tx"`
 	Timestamp  uint32   `json:"timestamp"`
 	Difficulty uint32   `json:"difficulty"`
 	Nonce      uint32   `json:"nonce"`
 
-	cid *cid.Cid
+	cid cid.Cid
 }
 
 type Link struct {
-	Target *cid.Cid
+	Target cid.Cid
 }
 
 // assert that Block matches the Node interface for ipld
 var _ node.Node = (*Block)(nil)
 
-func (b *Block) Cid() *cid.Cid {
+func (b *Block) Cid() cid.Cid {
 	h, _ := mh.Sum(b.header(), mh.DBL_SHA2_256, -1)
 	return cid.NewCidV1(cid.BitcoinBlock, h)
 }
@@ -98,12 +98,12 @@ func (b *Block) ResolveLink(path []string) (*node.Link, []string, error) {
 	return lnk, rest, nil
 }
 
-func cidToHash(c *cid.Cid) []byte {
+func cidToHash(c cid.Cid) []byte {
 	h := []byte(c.Hash())
 	return h[len(h)-32:]
 }
 
-func hashToCid(hv []byte, t uint64) *cid.Cid {
+func hashToCid(hv []byte, t uint64) cid.Cid {
 	h, _ := mh.Encode(hv, mh.DBL_SHA2_256)
 	return cid.NewCidV1(t, h)
 }
