@@ -25,7 +25,7 @@ type Witness struct {
 	Data [][]byte `json:"data"`
 }
 
-func (t *Tx) Cid() *cid.Cid {
+func (t *Tx) Cid() cid.Cid {
 	h, _ := mh.Sum(t.RawData(), mh.DBL_SHA2_256, -1)
 	return cid.NewCidV1(cid.BitcoinTx, h)
 }
@@ -239,10 +239,10 @@ func txHashToLink(b []byte) *node.Link {
 }
 
 type TxIn struct {
-	PrevTx      *cid.Cid `json:"txid,omitempty"`
-	PrevTxIndex uint32   `json:"vout"`
-	Script      []byte   `json:"script"`
-	SeqNo       uint32   `json:"sequence"`
+	PrevTx      cid.Cid `json:"txid,omitempty"`
+	PrevTxIndex uint32  `json:"vout"`
+	Script      []byte  `json:"script"`
+	SeqNo       uint32  `json:"sequence"`
 }
 
 func (i *TxIn) WriteTo(w io.Writer) error {

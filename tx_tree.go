@@ -18,7 +18,7 @@ func (t *TxTree) BTCSha() []byte {
 	return cidToHash(t.Cid())
 }
 
-func (t *TxTree) Cid() *cid.Cid {
+func (t *TxTree) Cid() cid.Cid {
 	h, _ := mh.Sum(t.RawData(), mh.DBL_SHA2_256, -1)
 	return cid.NewCidV1(cid.BitcoinTx, h)
 }
