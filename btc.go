@@ -14,12 +14,12 @@ import (
 type Block struct {
 	rawdata []byte
 
-	Version    uint32   `json:"version"`
+	Version    uint32  `json:"version"`
 	Parent     cid.Cid `json:"parent"`
 	MerkleRoot cid.Cid `json:"tx"`
-	Timestamp  uint32   `json:"timestamp"`
-	Difficulty uint32   `json:"difficulty"`
-	Nonce      uint32   `json:"nonce"`
+	Timestamp  uint32  `json:"timestamp"`
+	Difficulty uint32  `json:"difficulty"`
+	Nonce      uint32  `json:"nonce"`
 
 	cid cid.Cid
 }

@@ -240,9 +240,9 @@ func txHashToLink(b []byte) *node.Link {
 
 type TxIn struct {
 	PrevTx      cid.Cid `json:"txid,omitempty"`
-	PrevTxIndex uint32   `json:"vout"`
-	Script      []byte   `json:"script"`
-	SeqNo       uint32   `json:"sequence"`
+	PrevTxIndex uint32  `json:"vout"`
+	Script      []byte  `json:"script"`
+	SeqNo       uint32  `json:"sequence"`
 }
 
 func (i *TxIn) WriteTo(w io.Writer) error {
