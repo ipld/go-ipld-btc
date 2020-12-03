@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -16,8 +18,14 @@ func TestBlockMessageDecoding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var hexString string
+	if runtime.GOOS == "windows" {
+		hexString = strings.TrimSuffix(string(hexdata), "\r\n")
+	} else {
+		hexString = strings.TrimSuffix(string(hexdata), "\n") // for non-windows
+	}
 
-	data, err := hex.DecodeString(string(hexdata[:len(hexdata)-1]))
+	data, err := hex.DecodeString(hexString)
 	if err != nil {
 		t.Fatal(err)
 	}
