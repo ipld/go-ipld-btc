@@ -14,3 +14,7 @@ jobs:
         with:
           version: v1.33
           args: "--disable-all --enable gofmt,govet,staticcheck"
+      - name: staticcheck
+        run: |
+          go get honnef.co/go/tools/cmd/staticcheck
+          staticcheck ./...
