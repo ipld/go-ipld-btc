@@ -31,6 +31,3 @@ PRs are welcome!
 
 Small note: If editing the Readme, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
-## License
-
-MIT © Jeromy Johnson
