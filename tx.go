@@ -245,17 +245,31 @@ type TxIn struct {
 	SeqNo       uint32  `json:"sequence"`
 }
 
-func (i *TxIn) WriteTo(w io.Writer) error {
+func (i *TxIn) WriteTo(w io.Writer) (int64, error) {
 	buf := make([]byte, 36)
 	copy(buf[:32], cidToHash(i.PrevTx))
 	binary.LittleEndian.PutUint32(buf[32:36], i.PrevTxIndex)
-	w.Write(buf)
+	var written int64
+	n, err := w.Write(buf)
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
 
-	writeVarInt(w, uint64(len(i.Script)))
-	w.Write(i.Script)
+	n, err = writeVarInt(w, uint64(len(i.Script)))
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
+	n, err = w.Write(i.Script)
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
 	binary.LittleEndian.PutUint32(buf[:4], i.SeqNo)
-	w.Write(buf[:4])
-	return nil
+	n, err = w.Write(buf[:4])
+	written += int64(n)
+	return written, err
 }
 
 type TxOut struct {
@@ -263,13 +277,23 @@ type TxOut struct {
 	Script []byte `json:"script"`
 }
 
-func (o *TxOut) WriteTo(w io.Writer) error {
+func (o *TxOut) WriteTo(w io.Writer) (int64, error) {
 	val := make([]byte, 8)
 	binary.LittleEndian.PutUint64(val, o.Value)
-	w.Write(val)
-	writeVarInt(w, uint64(len(o.Script)))
-	w.Write(o.Script)
-	return nil
+	var written int64
+	n, err := w.Write(val)
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
+	n, err = writeVarInt(w, uint64(len(o.Script)))
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
+	n, err = w.Write(o.Script)
+	written += int64(n)
+	return written, err
 }
 
 var _ node.Node = (*Tx)(nil)
