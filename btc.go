@@ -20,8 +20,6 @@ type Block struct {
 	Timestamp  uint32  `json:"timestamp"`
 	Difficulty uint32  `json:"difficulty"`
 	Nonce      uint32  `json:"nonce"`
-
-	cid cid.Cid
 }
 
 type Link struct {
