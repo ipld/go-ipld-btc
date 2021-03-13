@@ -91,7 +91,7 @@ func (t *TxTree) Stat() (*node.NodeStat, error) {
 }
 
 func (t *TxTree) String() string {
-	return fmt.Sprintf("[bitcoin transaction tree]")
+	return "[bitcoin transaction tree]"
 }
 
 func (t *TxTree) Tree(p string, depth int) []string {

@@ -138,7 +138,7 @@ func (b *Block) Stat() (*node.NodeStat, error) {
 }
 
 func (b *Block) String() string {
-	return fmt.Sprintf("[bitcoin block]")
+	return "[bitcoin block]"
 }
 
 func (b *Block) Tree(p string, depth int) []string {
