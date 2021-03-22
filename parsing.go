@@ -407,7 +407,7 @@ func readVarint(r *bufio.Reader) (int, error) {
 	return res, nil
 }
 
-func writeVarInt(w io.Writer, n uint64) error {
+func writeVarInt(w io.Writer, n uint64) (int, error) {
 	var d []byte
 	if n < 0xFD {
 		d = []byte{byte(n)}
@@ -424,8 +424,7 @@ func writeVarInt(w io.Writer, n uint64) error {
 		binary.LittleEndian.PutUint64(d[1:], n)
 		d[0] = 0xFE
 	}
-	_, err := w.Write(d)
-	return err
+	return w.Write(d)
 }
 
 func readVarSlice(r *bufio.Reader) ([]byte, error) {
