@@ -20,8 +20,6 @@ type Block struct {
 	Timestamp  uint32  `json:"timestamp"`
 	Difficulty uint32  `json:"difficulty"`
 	Nonce      uint32  `json:"nonce"`
-
-	cid cid.Cid
 }
 
 type Link struct {
@@ -140,7 +138,7 @@ func (b *Block) Stat() (*node.NodeStat, error) {
 }
 
 func (b *Block) String() string {
-	return fmt.Sprintf("[bitcoin block]")
+	return "[bitcoin block]"
 }
 
 func (b *Block) Tree(p string, depth int) []string {
