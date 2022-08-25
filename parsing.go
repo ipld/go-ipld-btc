@@ -168,10 +168,9 @@ func DecodeTxTree(b []byte) (*TxTree, error) {
 //
 // With segwit the layout changes from
 //
-//   version | tx_in_count | tx_in | tx_out_count | tx_out | lock_time
+//	version | tx_in_count | tx_in | tx_out_count | tx_out | lock_time
 //
-//   version | marker | flag | tx_in_count | tx_in | tx_out_count | tx_out | witness | lock_time
-//
+//	version | marker | flag | tx_in_count | tx_in | tx_out_count | tx_out | witness | lock_time
 func readTx(r *bufio.Reader) (*Tx, error) {
 	rawVersion, err := readFixedSlice(r, 4)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -14,7 +14,7 @@ import (
 var txdata = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff6403a6ab05e4b883e5bda9e7a59ee4bb99e9b1bc76a3a2bb0e9c92f06e4a6349de9ccc8fbe0fad11133ed73c78ee12876334c13c02000000f09f909f2f4249503130302f4d696e65642062792073647a6861626364000000000000000000000000000000005f77dba4015ca34297000000001976a914c825a1ecf2a6830c4401620c3a16f1995057c2ab88acfe75853a"
 
 func TestBlockMessageDecoding(t *testing.T) {
-	hexdata, err := ioutil.ReadFile("fixtures/block.hex")
+	hexdata, err := os.ReadFile("fixtures/block.hex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestBlockMessageDecodingSegwit(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("block:%s(%s)", tc.hash, tc.file), func(t *testing.T) {
-			hexdata, err := ioutil.ReadFile("fixtures/" + tc.file)
+			hexdata, err := os.ReadFile("fixtures/" + tc.file)
 			if err != nil {
 				t.Fatal(err)
 			}
