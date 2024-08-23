@@ -1,6 +1,6 @@
 module github.com/ipfs/go-ipld-btc
 
-go 1.21
+go 1.22
 
 require (
 	github.com/ipfs/go-cid v0.4.1
